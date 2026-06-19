@@ -25,9 +25,22 @@ services:
     command:
       - -c
       - |
-        echo "=====> Waiting for MongoDB (mongodb:27017) to be ready before starting Rocket.Chat...";
+        protocol=$(echo $$MONGO_URL | awk -F'://' '{print $$1}')
+        if [ "$$protocol" = "mongodb+srv" ]; then
+          echo "=====> MongoDB is using SRV protocol, skipping healthcheck before attempting to start rocket.chat ...";
+          exec node main.js;
+        fi
+        host_port=$(echo $$MONGO_URL | awk -F/ '{print $$3}')
+        if echo $$host_port | grep -q @; then
+          host_port=$(echo $$host_port | awk -F@ '{print $$2}')
+        fi
+        echo "=====> host_port: $$host_port";
+        host=$${host_port%%:*}
+        port=$${host_port##*:}
+        port=$${port:-27017}
+        echo "=====> Waiting for MongoDB ($$host:$$port) to be ready before starting Rocket.Chat...";
         for i in $(seq 1 60); do
-          if nc -z mongodb 27017 >/dev/null 2>&1; then
+          if nc -z $$host $$port >/dev/null 2>&1; then
             echo "=====> MongoDB is up - starting Rocket.Chat";
             exec node main.js;
           fi;
@@ -44,42 +57,12 @@ services:
       - "${BIND_IP:-0.0.0.0}:${METRICS_PORT:-9458}:${METRICS_PORT:-9458}"
     logging:
       driver: "json-file"
-    # healthcheck:
-    #   test: ["CMD", "nc", "-zv", "-w", "10", "rocketchat", "${PORT:-3000}"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 10
-    #   start_period: 30s
-  nats:
-    image: docker.io/nats:${NATS_VERSION:-2.11-alpine}
-    restart: always
-    expose:
-      - 4222
-      - 8222
-      - 6222
-    # healthcheck:
-    #   test: ["CMD", "nc", "-zv", "-w", "10", "nats", "4222"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 10
-    #   start_period: 30s
-    command: --http_port 8222
-    ports:
-      - "${NATS_BIND_IP:-127.0.0.1}:${NATS_PORT_NUMBER:-4222}:4222"
-    logging:
-      driver: "json-file"
-    labels:
-      container_tag: "${COMPOSE_PROJECT_NAME:-rocketchat}#nats"
-  nats-exporter:
-    image: docker.io/natsio/prometheus-nats-exporter:${NATS_EXPORTER_VERSION:-0.17.3}
-    depends_on:
-      - nats
-    expose:
-      - 7777
-    command:
-      - -healthz
-      - -varz
-      - "http://nats:8222"
+      # healthcheck:
+      #   test: ["CMD", "nc", "-zv", "-w", "10", "rocketchat", "${PORT:-3000}"]
+      #   interval: 30s
+      #   timeout: 10s
+      #   retries: 10
+      #   start_period: 30s
   mongodb-fix-permission-container:
     image: docker.io/mongodb/mongodb-community-server:${MONGODB_VERSION:-8.2}-ubi8
     restart: on-failure
