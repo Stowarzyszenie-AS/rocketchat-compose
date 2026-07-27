@@ -93,8 +93,10 @@ services:
       timeout: 10s
       retries: 10
       start_period: 30s
-    ports:
-      - "${MONGODB_BIND_IP:-127.0.0.1}:${MONGODB_PORT_NUMBER:-27017}:${MONGODB_PORT_NUMBER:-27017}"
+    networks:
+      - proxy
+    # MongoDB should not be bound to the host; keep it internal to the compose network
+    # If you need host access, use a separate published port intentionally.
 
   mongodb-exporter:
     image: docker.io/percona/mongodb_exporter:${MONGODB_EXPORTER_VERSION:-0.44.0}
@@ -109,3 +111,7 @@ services:
 
 volumes:
   mongodb_data: {driver: local}
+
+networks:
+  proxy:
+    external: true
