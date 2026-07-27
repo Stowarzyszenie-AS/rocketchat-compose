@@ -109,8 +109,7 @@ services:
       - --mongodb.uri=${MONGODB_URI:-mongodb://mongodb:27017}
       - --collect-all
       - --compatible-mode
-    networks:
-      - internal
+    # will join project default network
 
 volumes:
   mongodb_data: {driver: local}
