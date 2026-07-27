@@ -55,6 +55,7 @@ services:
     logging:
       driver: "json-file"
     networks:
+      - default
       - proxy
     # healthcheck:
     #   test: ["CMD", "nc", "-zv", "-w", "10", "rocketchat", "${PORT:-3000}"]
@@ -63,6 +64,7 @@ services:
     #   retries: 10
     #   start_period: 30s
 
+# Project default network will still be used; add external `proxy` for npm/reverse-proxy
 networks:
   proxy:
     external: true
